@@ -345,8 +345,11 @@ CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
 
 // Keep the item for the lifetime of the active instance. It is an indicator;
 // the keyboard shortcut remains the control for changing lock state.
-statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-updateStatusIcon(locked: locked)
+// Explicitly enter the main actor even with synchronous top-level code.
+DispatchQueue.main.async {
+    statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    updateStatusIcon(locked: locked)
+}
 CGEvent.tapEnable(tap: tap, enable: true)
 
 // MARK: - Cleanup on exit
