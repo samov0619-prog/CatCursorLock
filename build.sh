@@ -54,8 +54,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 
 echo "==> Compile with swiftc"
-swiftc main.swift -O -o "$BIN" \
-    -framework CoreGraphics -framework Foundation -framework ApplicationServices
+# Match the bundle's macOS 13 minimum for AppKit and SF Symbols availability.
+swiftc main.swift -O -target "$(uname -m)-apple-macosx13.0" -o "$BIN" \
+    -framework AppKit -framework CoreGraphics -framework Foundation -framework ApplicationServices
 
 echo "==> Codesign (${SIGN_IDENTITY:-ad-hoc})"
 codesign -s "${SIGN_IDENTITY:--}" -f --deep "$APP"

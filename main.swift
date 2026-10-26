@@ -6,6 +6,7 @@
 // disappears if the process exits, and some system/multitouch gestures bypass it.
 
 import Foundation
+import AppKit
 import CoreGraphics
 import ApplicationServices
 import Darwin
@@ -213,6 +214,21 @@ let toggleKeyCode: Int64 = 0x25
 
 var locked = false
 var eventTap: CFMachPort?
+var statusItem: NSStatusItem?
+
+// AppKit updates stay on the main thread and outside the event-tap callback.
+@MainActor
+func updateStatusIcon(locked: Bool) {
+    guard let button = statusItem?.button else { return }
+    let description = "CatCursorLock — \(locked ? "Locked" : "Unlocked")"
+    let image = NSImage(systemSymbolName: locked ? "lock.fill" : "lock.open",
+                        accessibilityDescription: description)
+    image?.isTemplate = true
+    button.image = image
+    button.title = image == nil ? (locked ? "🔒" : "🔓") : ""
+    button.toolTip = description + " (⌃⌥⌘L)"
+    button.setAccessibilityLabel(description)
+}
 
 // No IOPMAssertion: allow macOS to sleep the display normally.
 // Ignore repeated key-downs until the L key is actually released.
@@ -258,6 +274,8 @@ let eventCallback: CGEventTapCallBack = { _, type, event, _ in
             if !isRepeat {
                 toggleKeyHeld = true
                 locked.toggle()
+                let newState = locked
+                DispatchQueue.main.async { updateStatusIcon(locked: newState) }
                 log("[catcursorlock] \(locked ? "LOCKED" : "UNLOCKED")")
             }
             return nil // Consume the hotkey, including any repeats.
@@ -279,6 +297,11 @@ let eventCallback: CGEventTapCallBack = { _, type, event, _ in
 
     return Unmanaged.passUnretained(event)
 }
+
+// Accessory mode provides a menu-bar indicator without a Dock icon or window.
+// Command-line management and waiting agents never reach this initialization.
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory)
 
 // MARK: - Check Accessibility permission
 let promptOpts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
@@ -319,6 +342,11 @@ eventTap = tap
 
 let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
 CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
+
+// Keep the item for the lifetime of the active instance. It is an indicator;
+// the keyboard shortcut remains the control for changing lock state.
+statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+updateStatusIcon(locked: locked)
 CGEvent.tapEnable(tap: tap, enable: true)
 
 // MARK: - Cleanup on exit
@@ -335,4 +363,4 @@ log("""
     Emergency exit: Ctrl+C in foreground, or terminate the catcursorlock process.
 """)
 
-CFRunLoopRun()
+app.run()

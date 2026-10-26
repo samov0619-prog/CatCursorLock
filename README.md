@@ -1,10 +1,11 @@
 # CatCursorLock for macOS
 
-Small macOS menu-bar-less input lock derived from [choiyounggi/mac-inputlock](https://github.com/choiyounggi/mac-inputlock), released under MIT (see `LICENSE`).
+Small macOS input lock with a menu-bar status indicator, derived from [choiyounggi/mac-inputlock](https://github.com/choiyounggi/mac-inputlock), released under MIT (see `LICENSE`).
 
 ## Behavior
 
 - **Control + Option + Command + L**: toggle on/off. A held `L` causes *one* toggle until released; repeats are ignored. The shortcut's key-up is also suppressed.
+- **Menu-bar indicator**: an open padlock means input is unlocked; a closed padlock means it is locked. Hover over the icon for the status and shortcut. The icon is a visual indicator; use the shortcut to toggle the lock.
 - Locked: block keyboard, modifier keys, mouse and trackpad **clicks**, button press/release, scroll wheel and drag actions.
 - **Cursor continues to move** with the mouse or touchpad. Drag events are converted to ordinary mouse-move events so movement also works when a button is physically held.
 - **No unlock timer** and **no display sleep prevention**. macOS controls display idle/sleep normally, and may lock its session according to System Settings. If the Mac sleeps and asks for a password on wake, that's macOS, not this utility.
@@ -29,7 +30,7 @@ Run the bundle:
 open ./CatCursorLock.app
 ```
 
-Grant **System Settings → Privacy & Security → Accessibility** to `CatCursorLock.app`. If the permission is not immediately effective, quit and reopen the app. It's an LSUIElement background app with no window/menu.
+Grant **System Settings → Privacy & Security → Accessibility** to `CatCursorLock.app`. If the permission is not immediately effective, quit and reopen the app. Once input interception is ready, a padlock appears in the menu bar. The app has no window or Dock icon.
 
 **Avoid running another input-locking daemon simultaneously** until the new hotkey and recovery method have been tested.
 
@@ -49,7 +50,7 @@ To remove:
 
 Autostart only works if the `.app` remains at the *same stable path*. If you choose another location, invoke the binary from that location instead; quote paths containing spaces or shell special characters. `--install-agent` writes `~/Library/LaunchAgents/local.catcursorlock.plist`, and the managed agent logs to `~/Library/Logs/catcursorlock.log`; ordinary launches and the build script do not install the agent.
 
-Installing again updates the registered executable path and restarts the managed agent. If a manually launched instance is already running, the agent waits without intercepting input until that instance exits, then starts unlocked. Uninstalling stops the managed agent (including a waiting agent) and removes its plist; a manually launched instance continues running.
+Installing again updates the registered executable path and restarts the managed agent. If a manually launched instance is already running, the agent waits without intercepting input or showing another icon until that instance exits, then starts unlocked. Uninstalling stops the managed agent (including a waiting agent) and removes its plist; a manually launched instance continues running.
 
 Run both management commands as your own user in an active macOS GUI login session, without `sudo`. They return `0` on success and `1` on failure, with an error on standard error. Uninstalling an already absent agent succeeds when the GUI login domain is available. Concurrent install/uninstall operations are rejected with an error; retry once the other operation finishes. Installation success confirms launchd registration; Accessibility permission is still required for input interception.
 
@@ -67,7 +68,7 @@ For a foreground launch from Terminal, `Ctrl+C` also works while unlocked. While
 
 ## Testing checklist on Mac
 
-1. Start app. Confirm hotkey switches lock on/off exactly once per key press, including when holding `L` down.
+1. Start app. Confirm an open padlock appears in the menu bar. The hotkey should switch lock on/off exactly once per key press, including when holding `L` down, and the icon should change to a closed/open padlock with the state. Verify it is visible in both light and dark mode and that its tooltip describes the current state.
 2. While locked, move pointer with one finger or a mouse; pointer should move.
 3. While locked, click/tap/drag/scroll and type ordinary keys; no actions should reach open apps.
 4. While locked, press and hold mouse/trackpad button while moving; pointer should move without dragging UI objects.
