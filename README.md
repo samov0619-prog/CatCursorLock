@@ -6,6 +6,7 @@ Small macOS input lock with a menu-bar status indicator, derived from [choiyoung
 
 - **Control + Option + Command + L**: toggle on/off. A held `L` causes *one* toggle until released; repeats are ignored. The shortcut's key-up is also suppressed.
 - **Menu-bar indicator**: an open padlock means input is unlocked; a closed padlock means it is locked. Hover over the icon for the status and shortcut. The icon is a visual indicator; use the shortcut to toggle the lock.
+- **Sound feedback**: locking plays the built-in macOS **Tink** sound; unlocking plays **Pop** (with the system alert as a fallback if unavailable). Blocked key presses, mouse/trackpad clicks and scrolling play the current macOS alert sound, at most once every 200 ms. Key autorepeats, releases, modifier-only presses and allowed pointer movement stay silent. System sound/mute settings apply.
 - Locked: block keyboard, modifier keys, mouse and trackpad **clicks**, button press/release, scroll wheel and drag actions.
 - **Cursor continues to move** with the mouse or touchpad. Drag events are converted to ordinary mouse-move events so movement also works when a button is physically held.
 - **No unlock timer** and **no display sleep prevention**. macOS controls display idle/sleep normally, and may lock its session according to System Settings. If the Mac sleeps and asks for a password on wake, that's macOS, not this utility.
@@ -68,9 +69,9 @@ For a foreground launch from Terminal, `Ctrl+C` also works while unlocked. While
 
 ## Testing checklist on Mac
 
-1. Start app. Confirm an open padlock appears in the menu bar. The hotkey should switch lock on/off exactly once per key press, including when holding `L` down, and the icon should change to a closed/open padlock with the state. Verify it is visible in both light and dark mode and that its tooltip describes the current state.
+1. Start app. Confirm an open padlock appears in the menu bar. The hotkey should switch lock on/off exactly once per key press, including when holding `L` down, and the icon should change to a closed/open padlock with the state. Listen for Tink on lock and Pop on unlock, once per toggle and with no blocked-input alert from the shortcut itself. Verify the icon is visible in both light and dark mode and that its tooltip describes the current state.
 2. While locked, move pointer with one finger or a mouse; pointer should move.
-3. While locked, click/tap/drag/scroll and type ordinary keys; no actions should reach open apps.
+3. While locked, click/tap/drag/scroll and type ordinary keys; no actions should reach open apps. Key presses, clicks and scrolling should play the selected macOS alert sound, limited to one every 200 ms (including just after a toggle). Holding a key should not keep beeping; releasing keys/buttons, pressing only modifiers and moving the pointer should be silent. Check feedback with system sounds muted and unmuted.
 4. While locked, press and hold mouse/trackpad button while moving; pointer should move without dragging UI objects.
 5. Leave locked longer than 10 minutes while keeping the screen awake normally: it should stay locked. Test sleep/wake separately, as macOS security dialogs may behave differently.
 6. Verify process termination and input recovery using the methods in **Stop the app**. With autostart installed, verify that terminating the managed agent restarts it unlocked; uninstall it to stop it permanently.

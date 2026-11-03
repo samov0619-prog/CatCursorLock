@@ -216,6 +216,31 @@ var locked = false
 var eventTap: CFMachPort?
 var statusItem: NSStatusItem?
 
+// Keep sound loading/playback outside the event-tap callback, on the main actor.
+@MainActor
+enum LockSounds {
+    static let lock = NSSound(named: NSSound.Name("Tink"))
+    static let unlock = NSSound(named: NSSound.Name("Pop"))
+
+    static func playTransition(locked: Bool) {
+        lock?.stop()
+        unlock?.stop()
+        let sound = locked ? lock : unlock
+        if sound?.play() != true { NSSound.beep() }
+    }
+}
+
+// Bound feedback during rapid clicks/scrolling; never queue one beep per event.
+var lastBlockedSoundTime: UInt64 = 0
+let blockedSoundInterval: UInt64 = 200_000_000 // 200 ms, monotonic clock.
+
+func signalBlockedInput() {
+    let now = DispatchTime.now().uptimeNanoseconds
+    guard now - lastBlockedSoundTime >= blockedSoundInterval else { return }
+    lastBlockedSoundTime = now
+    DispatchQueue.main.async { NSSound.beep() }
+}
+
 // AppKit updates stay on the main thread and outside the event-tap callback.
 @MainActor
 func updateStatusIcon(locked: Bool) {
@@ -275,7 +300,12 @@ let eventCallback: CGEventTapCallBack = { _, type, event, _ in
                 toggleKeyHeld = true
                 locked.toggle()
                 let newState = locked
-                DispatchQueue.main.async { updateStatusIcon(locked: newState) }
+                // Give transition feedback a short head start over blocked input.
+                lastBlockedSoundTime = DispatchTime.now().uptimeNanoseconds
+                DispatchQueue.main.async {
+                    updateStatusIcon(locked: newState)
+                    LockSounds.playTransition(locked: newState)
+                }
                 log("[catcursorlock] \(locked ? "LOCKED" : "UNLOCKED")")
             }
             return nil // Consume the hotkey, including any repeats.
@@ -290,7 +320,17 @@ let eventCallback: CGEventTapCallBack = { _, type, event, _ in
         case .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
             event.type = .mouseMoved
             return Unmanaged.passUnretained(event)
+        case .keyDown:
+            // A held key should not produce a stream of alert sounds.
+            if event.getIntegerValueField(.keyboardEventAutorepeat) == 0 {
+                signalBlockedInput()
+            }
+            return nil
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel:
+            signalBlockedInput()
+            return nil
         default:
+            // Releases and modifiers are silent, including the unlock chord.
             return nil // Block keys, modifiers, mouse buttons and scrolling.
         }
     }
